@@ -1,0 +1,2 @@
+watchdog
+git+https://github.com/Hiroshiba/yukarin_autoreg@0632c54ee9d04e2620433d3a1c874d76a5b06041
