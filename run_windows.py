@@ -5,16 +5,16 @@ from zipfile import ZipFile
 
 import numpy
 import soundfile
+import yaml
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseSettings
-from yukarin_autoreg.config import create_from_json as create_config
-from yukarin_autoreg.generator import Generator, SamplingPolicy
+from yukarin_wavernn.config import Config
+from yukarin_wavernn.generator import Generator, SamplingPolicy
 
 
 class Settings(BaseSettings):
-    model_config: str
-    model: str
+    model_dir: str
 
     class Config:
         env_file = ".env"
@@ -22,13 +22,17 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-config = create_config(Path(settings.model_config))
-model = Generator.load_model(
-    model_config=config.model,
-    model_path=Path(settings.model),
-    gpu=0,
+
+config = Config.from_dict(
+    yaml.safe_load((Path(settings.model_dir) / "config.yaml").open())
 )
-generator = Generator(config=config, model=model, max_batch_size=3)
+generator = Generator(
+    config=config,
+    predictor=list(Path(settings.model_dir).glob("*.pth"))[0],
+    use_gpu=True,
+    max_batch_size=3,
+    use_fast_inference=True,
+)
 
 app = FastAPI()
 

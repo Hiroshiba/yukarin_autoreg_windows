@@ -2,6 +2,6 @@ fastapi
 uvicorn
 python-multipart
 pydantic[dotenv]
-git+https://github.com/Hiroshiba/acoustic_feature_extractor@77da05bb702b76fa2130037471448343259f84c5
-git+https://github.com/Hiroshiba/openjtalk-label-getter@6435aa49dcfc9b06160f61552043a9a01ab9f359
-git+https://github.com/Hiroshiba/julius4seg@0e01f546bf4aa1329c9ee7a39df8630c066e63e3
+git+https://github.com/Hiroshiba/acoustic_feature_extractor@db621adef6ef3899e113d34a890b55df75182bc2
+git+https://github.com/Hiroshiba/openjtalk-label-getter@3737eec59ca5d35a5a43f31d1f6c51c2835d9030
+git+https://github.com/Hiroshiba/julius4seg@8b36b61f6fcc761612be8d6c33b391b7586d95f0

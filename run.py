@@ -12,9 +12,18 @@ from acoustic_feature_extractor.data.wave import Wave
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 from julius4seg import sp_inserter
-from openjtalk_label_getter import openjtalk_label_getter
+from openjtalk_label_getter import OutputType, openjtalk_label_getter
+from pydantic import BaseSettings
 
-app = FastAPI()
+
+class Settings(BaseSettings):
+    model_dir: str
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()
 
 _hmm_model = "/github/segmentation-kit/models/hmmdefs_monof_mix16_gid.binhmm"
 _jvs_to_julius = {
@@ -25,8 +34,12 @@ _jvs_to_julius = {
     "pau": "sp",
 }
 _feature_rate = 200
-_yukari_mean = 5.459402253
+_voiro_mean = numpy.load(
+    list(Path(settings.model_dir).glob("*.npy"))[0], allow_pickle=True
+).item()["mean"]
 _hiho_mean = 4.84241337
+
+app = FastAPI()
 
 
 @app.post("/")
@@ -38,7 +51,7 @@ async def to_feature(text: str = Form(...), wave: UploadFile = File(...)):
 
         # openjtalk
         phonemes = [
-            p.phoneme
+            p.label
             for p in openjtalk_label_getter(
                 text,
                 openjtalk_command="open_jtalk",
@@ -48,6 +61,8 @@ async def to_feature(text: str = Form(...), wave: UploadFile = File(...)):
                 ),
                 output_wave_path=tmp_dir.joinpath("wave.wav"),
                 output_log_path=tmp_dir.joinpath("log.txt"),
+                output_type=OutputType.phoneme,
+                without_span=False,
             )
         ]
 
@@ -64,7 +79,9 @@ async def to_feature(text: str = Form(...), wave: UploadFile = File(...)):
         ]
 
         julius_dict_path = tmp_dir.joinpath("2nd.dict")
-        julius_dict = sp_inserter.gen_julius_dict_2nd(" ".join(julius_phonemes))
+        julius_dict = sp_inserter.gen_julius_dict_2nd(
+            " ".join(julius_phonemes), model_type=sp_inserter.ModelType.gmm
+        )
         julius_dict_path.write_text(julius_dict)
 
         julius_dfa_path = tmp_dir.joinpath("2nd.dfa")
@@ -72,7 +89,11 @@ async def to_feature(text: str = Form(...), wave: UploadFile = File(...)):
         julius_dfa_path.write_text(julius_dfa)
 
         julius_output = sp_inserter.julius_phone_alignment(
-            str(julius_audio_path), str(tmp_dir.joinpath("2nd")), _hmm_model
+            str(julius_audio_path),
+            str(tmp_dir.joinpath("2nd")),
+            _hmm_model,
+            model_type=sp_inserter.ModelType.gmm,
+            options=None,
         )
 
         time_alignment_list = sp_inserter.frame_to_second(
@@ -108,7 +129,7 @@ async def to_feature(text: str = Form(...), wave: UploadFile = File(...)):
         converted_f0 = f0.convert(
             input_mean=f0.valid_f0_log.mean(),
             input_var=f0.valid_f0_log.var(),
-            target_mean=_yukari_mean,
+            target_mean=_voiro_mean,
             target_var=f0.valid_f0_log.var(),
         )
         converted_f0.array = converted_f0.array.astype(numpy.float32).reshape(-1, 1)
